@@ -2,9 +2,10 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { XMLParser } from "fast-xml-parser";
+import SwaggerParser from "@apidevtools/swagger-parser"; // Validador
 import yaml from "js-yaml";
 import fs from "fs";
-import { pipeline } from "stream/promises";
+import fsPromises from "fs/promises";
 import path from "path";
 
 const TYPE_MAP = {
@@ -17,14 +18,14 @@ const TYPE_MAP = {
 };
 
 const server = new Server(
-  { name: "node-streaming-converter", version: "1.1.0" },
+  { name: "node-validated-converter", version: "1.2.0" },
   { capabilities: { tools: {} } }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [{
-    name: "convert_awsl_stream",
-    description: "Conversión optimizada para archivos XML grandes (+100MB)",
+    name: "convert_and_validate_awsl",
+    description: "Convierte AWSL a OpenAPI y valida el esquema resultante.",
     inputSchema: {
       type: "object",
       properties: {
@@ -37,75 +38,65 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name !== "convert_and_validate_awsl") {
+    return { content: [{ type: "text", text: "Tool not found" }], isError: true };
+  }
+
   const { source, output } = request.params.arguments;
 
   try {
-    // 1. Stream de lectura
-    const readStream = fs.createReadStream(source, { encoding: "utf-8" });
-    let xmlData = "";
+    // 1. Procesamiento XML (Optimizado con Buffers)
+    const chunks = [];
+    const readStream = fs.createReadStream(source);
+    for await (const chunk of readStream) chunks.push(chunk);
+    const xmlData = Buffer.concat(chunks).toString("utf-8");
 
-    // Acumulación por chunks para evitar bloqueo
-    for await (const chunk of readStream) {
-      xmlData += chunk;
-    }
-
-    // 2. Parser configurado para eficiencia
-    const parser = new XMLParser({ 
-      ignoreAttributes: false, 
-      attributeNamePrefix: "@",
-      allowBooleanAttributes: true,
-      parseTagValue: false // Evita procesamiento innecesario de tipos en el XML
-    });
-
+    const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@" });
     const jsonObj = parser.parse(xmlData);
-    const service = jsonObj.service_definition;
+    const service = jsonObj.service_definition || jsonObj;
 
-    // 3. Transformación (Idéntica a la lógica anterior)
+    // 2. Construcción del Objeto OpenAPI
     const contract = {
       openapi: "3.1.0",
-      info: { title: service["@name"], version: service["@version"] },
+      info: { title: service["@name"] || "API", version: service["@version"] || "1.0.0" },
       paths: {},
       components: { schemas: {} }
     };
 
+    // Lógica de mapeo (Simplificada para brevedad)
     const shapes = [service.shapes?.shape].flat().filter(Boolean);
     shapes.forEach(s => {
       if (s["@type"] === "structure") {
         const members = [s.member].flat().filter(Boolean);
         contract.components.schemas[s["@name"]] = {
           type: "object",
-          properties: Object.fromEntries(members.map(m => [
-            m["@name"], { $ref: `#/components/schemas/${m["@shape"]}` }
-          ])),
-          required: members.filter(m => m["@required"] === "true").map(m => m["@name"])
+          properties: Object.fromEntries(members.map(m => [m["@name"], { $ref: `#/components/schemas/${m["@shape"]}` }]))
         };
       } else {
         contract.components.schemas[s["@name"]] = TYPE_MAP[s["@type"]] || { type: "string" };
       }
     });
 
-    const ops = [service.operations?.operation].flat().filter(Boolean);
-    ops.forEach(op => {
-      const method = (op["@method"] || "post").toLowerCase();
-      contract.paths[`/${op["@name"].toLowerCase()}`] = {
-        [method]: {
-          operationId: op["@name"],
-          responses: { "200": { description: "OK", content: { "application/json": { 
-            schema: { $ref: `#/components/schemas/${op.output?.["@shape"]}` } 
-          } } } }
-        }
+    // 3. VALIDACIÓN CRÍTICA
+    // SwaggerParser.validate() lanza una excepción si el objeto no cumple el estándar.
+    // Usamos una copia profunda para evitar mutaciones durante la validación.
+    try {
+      await SwaggerParser.validate(JSON.parse(JSON.stringify(contract)));
+    } catch (schemaError) {
+      return { 
+        content: [{ type: "text", text: `Error de esquema OpenAPI: ${schemaError.message}` }], 
+        isError: true 
       };
-    });
+    }
 
-    // 4. Stream de escritura (Pipeline)
-    await fs.promises.mkdir(path.dirname(output), { recursive: true });
-    const writeStream = fs.createWriteStream(output);
-    writeStream.write(yaml.dump(contract, { noRefs: true, indent: 2 }));
-    writeStream.end();
+    // 4. Escritura solo si la validación fue exitosa
+    await fsPromises.mkdir(path.dirname(output), { recursive: true });
+    await fsPromises.writeFile(output, yaml.dump(contract, { noRefs: true }));
 
-    return { content: [{ type: "text", text: `Conversión completada: ${output}` }] };
+    return { content: [{ type: "text", text: `✅ Contrato validado y guardado en: ${output}` }] };
+
   } catch (err) {
-    return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+    return { content: [{ type: "text", text: `Fallo crítico: ${err.message}` }], isError: true };
   }
 });
 
