@@ -13,11 +13,14 @@ npm install
 Add in your MCP config:
 ```
 {
-  "mcpServers": {
-    "awsl-converter": {
-      "command": "node",
-      "args": ["/RUTA_ABSOLUTA/index.js"]
-    }
-  }
+	"servers": {
+		"awsl-to-openapi": {
+			"command": "node",
+			"args": [
+				"/Users/yavac/Repositorio/mcp--xml-wsdl-to-openapi/index.js"
+			]
+		}
+	},
+	"inputs": []
 }
 ```
