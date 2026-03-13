@@ -1,10 +1,23 @@
-Include in your MCP config:
+# AWSL to OpenAPI MCP Server
 
+Servidor basado en Model Context Protocol para la conversión automatizada y validada de definiciones de servicio XML (AWSL) a OpenAPI 3.1.
+
+## Requisitos
+- Node.js >= 18.0.0
+- npm
+
+## Instalación
+```bash
+npm install
 ```
-"mcpServers": {
-  "awsl_node": {
-    "command": "node",
-    "args": ["/tu/ruta/server.js"]
+Add in your MCP config:
+```
+{
+  "mcpServers": {
+    "awsl-converter": {
+      "command": "node",
+      "args": ["/RUTA_ABSOLUTA/index.js"]
+    }
   }
 }
 ```
