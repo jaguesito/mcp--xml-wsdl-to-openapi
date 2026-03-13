@@ -91,15 +91,50 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     ops.forEach(op => {
       const method = (op["@method"] || "post").toLowerCase();
       const pathName = `/${op["@name"].toLowerCase()}`;
+      
       contract.paths[pathName] = {
         [method]: {
           operationId: op["@name"],
-          responses: { "200": { 
-            description: "Success", 
-            content: { "application/json": { schema: { $ref: `#/components/schemas/${op.output?.["@shape"]}` } } } 
-          } }
+          responses: { 
+            "200": { 
+              description: "Success", 
+              content: { "application/json": { schema: { $ref: `#/components/schemas/${op.output?.["@shape"]}` } } } 
+            } 
+          }
         }
       };
+
+      const parameters = [];
+      
+      const headers = [
+        ...(op.headers?.header ? [op.headers.header].flat() : []),
+        ...(op.header ? [op.header].flat() : []),
+        ...(op.input?.header ? [op.input.header].flat() : [])
+      ].filter(Boolean);
+
+      headers.forEach(h => {
+        let schemaDef;
+        
+        if (h["@type"]) {
+          schemaDef = TYPE_MAP[h["@type"]] || { type: "string" };
+        } else if (h["@shape"]) {
+          schemaDef = { $ref: `#/components/schemas/${h["@shape"]}` };
+        } else {
+          schemaDef = { type: "string" };
+        }
+
+        parameters.push({
+          name: h["@name"],
+          in: "header",
+          required: h["@required"] === "true",
+          schema: schemaDef
+        });
+      });
+
+      if (parameters.length > 0) {
+        contract.paths[pathName][method].parameters = parameters;
+      }
+
       if (op.input) {
         contract.paths[pathName][method].requestBody = {
           required: true,
