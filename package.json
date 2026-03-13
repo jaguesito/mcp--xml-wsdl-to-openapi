@@ -1,0 +1,13 @@
+{
+  "name": "awsl-to-openapi-mcp",
+  "version": "1.0.0",
+  "description": "MCP server to convert AWSL XML to OpenAPI 3.1",
+  "type": "module",
+  "main": "index.js",
+  "dependencies": {
+    "@apidevtools/swagger-parser": "^10.1.0",
+    "@modelcontextprotocol/sdk": "^1.0.1",
+    "fast-xml-parser": "^4.3.2",
+    "js-yaml": "^4.1.0"
+  }
+}
