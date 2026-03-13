@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: ECommerce Service
+  version: 1.0.0
+  description: Converted from WSDL to OpenAPI
+servers:
+  - url: http://example.com/ecommerce/service
+paths:
+  /products/{productId}:
+    get:
+      operationId: GetProduct
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+  /orders:
+    post:
+      operationId: PlaceOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Order'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: string
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        ProductId:
+          type: string
+        ProductName:
+          type: string
+        Price:
+          type: number
+          format: decimal
+      required:
+        - ProductId
+        - ProductName
+        - Price
+    Order:
+      type: object
+      properties:
+        OrderId:
+          type: string
+        CustomerName:
+          type: string
+        Products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+      required:
+        - OrderId
+        - CustomerName

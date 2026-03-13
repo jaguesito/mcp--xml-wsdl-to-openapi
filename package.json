@@ -9,5 +9,20 @@
     "@modelcontextprotocol/sdk": "^1.0.1",
     "fast-xml-parser": "^4.3.2",
     "js-yaml": "^4.1.0"
-  }
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaguesito/mcp--xml-wsdl-to-openapi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jaguesito/mcp--xml-wsdl-to-openapi/issues"
+  },
+  "homepage": "https://github.com/jaguesito/mcp--xml-wsdl-to-openapi#readme"
 }

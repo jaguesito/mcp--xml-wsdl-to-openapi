@@ -1,0 +1,53 @@
+openapi: 3.1.0
+info:
+  title: CurrencyConverter API
+  version: 1.0.0
+  description: API for currency conversion based on WSDL
+servers:
+  - url: http://localhost:8080/axis/services/CurrencyConverter
+paths:
+  /GetConversion:
+    post:
+      summary: Convert currency
+      operationId: getConversion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertRequest'
+      responses:
+        '200':
+          description: Successful conversion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConvertResponse'
+components:
+  schemas:
+    ConvertRequest:
+      type: object
+      properties:
+        fromCurrency:
+          type: string
+        toCurrency:
+          type: string
+        amount:
+          type: number
+          format: double
+      required:
+        - fromCurrency
+        - toCurrency
+        - amount
+    ConvertResponse:
+      type: object
+      properties:
+        result:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - result
+        - timestamp
